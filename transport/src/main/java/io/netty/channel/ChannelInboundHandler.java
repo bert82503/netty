@@ -18,29 +18,39 @@ package io.netty.channel;
 /**
  * {@link ChannelHandler} which adds callbacks for state changes. This allows the user
  * to hook in to state changes easily.
+ * 它是一种ChannelHandler，为状态更改添加回调。(处理入站数据以及各种状态变化)
+ * 这允许用户容易地接入状态变化。
  */
 public interface ChannelInboundHandler extends ChannelHandler {
 
+    // Channel的生命周期
+    /// Channel的生命周期状态
+    /// Channel的状态模型(Registered -> Active -> Inactive -> Unregistered)
     /**
-     * The {@link Channel} of the {@link ChannelHandlerContext} was registered with its {@link EventLoop}
+     * The {@link Channel} of the {@link ChannelHandlerContext} was registered with its {@link EventLoop}.
+     * Channel已经被注册到EventLoop。
      */
     void channelRegistered(ChannelHandlerContext ctx) throws Exception;
 
     /**
-     * The {@link Channel} of the {@link ChannelHandlerContext} was unregistered from its {@link EventLoop}
+     * The {@link Channel} of the {@link ChannelHandlerContext} was unregistered from its {@link EventLoop}.
+     * Channel从EventLoop取消注册。
      */
     void channelUnregistered(ChannelHandlerContext ctx) throws Exception;
 
     /**
-     * The {@link Channel} of the {@link ChannelHandlerContext} is now active
+     * The {@link Channel} of the {@link ChannelHandlerContext} is now active.
+     * Channel现在处于活动状态(已经连接到它的远程节点)，可以接收和发送数据。
      */
     void channelActive(ChannelHandlerContext ctx) throws Exception;
 
     /**
      * The {@link Channel} of the {@link ChannelHandlerContext} was registered is now inactive and reached its
      * end of lifetime.
+     * Channel现在处于非活动状态(没有连接到远程节点)，且达到生命的终点。
      */
     void channelInactive(ChannelHandlerContext ctx) throws Exception;
+
 
     /**
      * Invoked when the current {@link Channel} has read a message from the peer.
