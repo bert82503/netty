@@ -179,7 +179,6 @@ public interface ChannelHandler {
 
     // ChannelHandler的生命周期
     /// ChannelHandler的生命周期方法
-
     /**
      * Gets called after the {@link ChannelHandler} was added to the actual context and it's ready to handle events.
      * 当把ChannelHandler添加到ChannelHandlerContext中时被调用，它已准备好处理事件。
@@ -192,6 +191,7 @@ public interface ChannelHandler {
      * 当从ChannelHandlerContext中移除ChannelHandler时被调用，它不再处理事件。
      */
     void handlerRemoved(ChannelHandlerContext ctx) throws Exception;
+
 
     /**
      * Gets called if a {@link Throwable} was thrown.
