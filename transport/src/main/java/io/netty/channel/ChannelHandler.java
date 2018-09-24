@@ -26,13 +26,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Handles or intercepts a {@link ChannelInboundInvoker} or {@link ChannelOutboundInvoker} operation, and forwards it
+ * Handles or intercepts a {@link ChannelInboundHandler} or {@link ChannelOutboundHandler} operation, and forwards it
  * to the next handler in a {@link ChannelPipeline}.
+ * 数据通道处理器，处理或拦截入站或出站操作，并将事件传递给{@link ChannelPipeline}中的下一个处理器({@link ChannelHandler})。
  *
- * <h3>Sub-types</h3>
+ * <h3>Sub-types/子类型</h3>
  * <p>
  * {@link ChannelHandler} itself does not provide many methods.  To handle a
- * a {@link ChannelInboundInvoker} or {@link ChannelOutboundInvoker} operation
+ * a {@link ChannelInboundHandler} or {@link ChannelOutboundHandler} operation
  * you need to implement its sub-interfaces.  There are many different sub-interfaces
  * which handles inbound and outbound operations.
  *
@@ -46,7 +47,7 @@ import java.lang.annotation.Target;
  * each sub-interface on how an event is interpreted when it goes upstream and
  * downstream respectively.
  *
- * <h3>The context object</h3>
+ * <h3>The context object/上下文对象</h3>
  * <p>
  * A {@link ChannelHandler} is provided with a {@link ChannelHandlerContext}
  * object.  A {@link ChannelHandler} is supposed to interact with the
@@ -55,7 +56,7 @@ import java.lang.annotation.Target;
  * downstream, modify the pipeline dynamically, or store the information
  *  (using {@link AttributeKey}s) which is specific to the handler.
  *
- * <h3>State management</h3>
+ * <h3>State management/状态管理</h3>
  *
  * A {@link ChannelHandler} often needs to store some stateful information.
  * The simplest and recommended approach is to use member variables:
@@ -167,7 +168,7 @@ import java.lang.annotation.Target;
  * This annotation is provided for documentation purpose, just like
  * <a href="http://www.javaconcurrencyinpractice.com/annotations/doc/">the JCIP annotations</a>.
  *
- * <h3>Additional resources worth reading</h3>
+ * <h3>Additional resources worth reading/其他资源值得一读</h3>
  * <p>
  * Please refer to the {@link ChannelHandler}, and
  * {@link ChannelPipeline} to find out more about inbound and outbound operations,
@@ -176,14 +177,19 @@ import java.lang.annotation.Target;
  */
 public interface ChannelHandler {
 
+    // ChannelHandler的生命周期
+    /// ChannelHandler的生命周期方法
+
     /**
      * Gets called after the {@link ChannelHandler} was added to the actual context and it's ready to handle events.
+     * 当把ChannelHandler添加到ChannelHandlerContext中时被调用，它已准备好处理事件。
      */
     void handlerAdded(ChannelHandlerContext ctx) throws Exception;
 
     /**
      * Gets called after the {@link ChannelHandler} was removed from the actual context and it doesn't handle events
      * anymore.
+     * 当从ChannelHandlerContext中移除ChannelHandler时被调用，它不再处理事件。
      */
     void handlerRemoved(ChannelHandlerContext ctx) throws Exception;
 
