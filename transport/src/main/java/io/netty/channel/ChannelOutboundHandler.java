@@ -19,10 +19,15 @@ import java.net.SocketAddress;
 
 /**
  * {@link ChannelHandler} which will get notified for IO-outbound-operations.
+ * 它是一种ChannelHandler，将收到I/O出站操作的通知(ChannelPromise)。
+ * (处理出站操作和数据)
  */
 public interface ChannelOutboundHandler extends ChannelHandler {
+
+    // Channel操作：bind -> connect -> disconnect -> close -> deregister
     /**
      * Called once a bind operation is made.
+     * 当请求将Channel绑定到本地地址时被调用。
      *
      * @param ctx           the {@link ChannelHandlerContext} for which the bind operation is made
      * @param localAddress  the {@link SocketAddress} to which it should bound
@@ -33,6 +38,7 @@ public interface ChannelOutboundHandler extends ChannelHandler {
 
     /**
      * Called once a connect operation is made.
+     * 当请求将Channel连接到远程节点时被调用。
      *
      * @param ctx               the {@link ChannelHandlerContext} for which the connect operation is made
      * @param remoteAddress     the {@link SocketAddress} to which it should connect
@@ -46,6 +52,7 @@ public interface ChannelOutboundHandler extends ChannelHandler {
 
     /**
      * Called once a disconnect operation is made.
+     * 当请求将Channel从远程节点断开时被调用。
      *
      * @param ctx               the {@link ChannelHandlerContext} for which the disconnect operation is made
      * @param promise           the {@link ChannelPromise} to notify once the operation completes
@@ -55,6 +62,7 @@ public interface ChannelOutboundHandler extends ChannelHandler {
 
     /**
      * Called once a close operation is made.
+     * 当请求关闭Channel时被调用。
      *
      * @param ctx               the {@link ChannelHandlerContext} for which the close operation is made
      * @param promise           the {@link ChannelPromise} to notify once the operation completes
@@ -64,6 +72,7 @@ public interface ChannelOutboundHandler extends ChannelHandler {
 
     /**
      * Called once a deregister operation is made from the current registered {@link EventLoop}.
+     * 当请求将Channel从它的EventLoop注销时被调用。
      *
      * @param ctx               the {@link ChannelHandlerContext} for which the close operation is made
      * @param promise           the {@link ChannelPromise} to notify once the operation completes
@@ -71,15 +80,18 @@ public interface ChannelOutboundHandler extends ChannelHandler {
      */
     void deregister(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception;
 
+
     /**
      * Intercepts {@link ChannelHandlerContext#read()}.
+     * 当请求从Channel读取更多的数据时被调用。
      */
     void read(ChannelHandlerContext ctx) throws Exception;
 
     /**
-    * Called once a write operation is made. The write operation will write the messages through the
+     * Called once a write operation is made. The write operation will write the messages through the
      * {@link ChannelPipeline}. Those are then ready to be flushed to the actual {@link Channel} once
-     * {@link Channel#flush()} is called
+     * {@link Channel#flush()} is called.
+     * 当请求通过Channel将数据写到出队缓冲区时被调用。
      *
      * @param ctx               the {@link ChannelHandlerContext} for which the write operation is made
      * @param msg               the message to write
@@ -89,8 +101,9 @@ public interface ChannelOutboundHandler extends ChannelHandler {
     void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception;
 
     /**
-     * Called once a flush operation is made. The flush operation will try to flush out all previous written messages
-     * that are pending.
+     * Called once a flush operation is made.
+     * The flush operation will try to flush out all previous written messages that are pending.
+     * 当请求通过Channel将入队数据冲刷到远程节点时被调用。
      *
      * @param ctx               the {@link ChannelHandlerContext} for which the flush operation is made
      * @throws Exception        thrown if an error occurs
