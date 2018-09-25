@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
 /**
  * Handles or intercepts a {@link ChannelInboundHandler} or {@link ChannelOutboundHandler} operation, and forwards it
  * to the next handler in a {@link ChannelPipeline}.
- * 数据通道处理器，处理或拦截入站或出站操作，并将事件传递给{@link ChannelPipeline}中的下一个处理器({@link ChannelHandler})。
+ * 数据通道处理器，处理或拦截入站或出站操作，并将事件转发到{@link ChannelPipeline}中的下一个处理器({@link ChannelHandler})。
  *
  * <h3>Sub-types/子类型</h3>
  * <p>
