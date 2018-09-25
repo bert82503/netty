@@ -25,12 +25,16 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The result of an asynchronous {@link Channel} I/O operation.
+ * 异步数据通道I/O操作的结果。
  * <p>
  * All I/O operations in Netty are asynchronous.  It means any I/O calls will
  * return immediately with no guarantee that the requested I/O operation has
  * been completed at the end of the call.  Instead, you will be returned with
  * a {@link ChannelFuture} instance which gives you the information about the
  * result or status of the I/O operation.
+ * Netty中的所有I/O操作都是异步的。
+ * 这意味着任何I/O调用都将立即返回，并且不保证在调用结束时所请求的I/O操作已完成。
+ * 相反，您将返回一个ChannelFuture实例，该实例为您提供有关I/O操作的结果或状态的信息。
  * <p>
  * A {@link ChannelFuture} is either <em>uncompleted</em> or <em>completed</em>.
  * When an I/O operation begins, a new future object is created.  The new future
@@ -40,22 +44,27 @@ import java.util.concurrent.TimeUnit;
  * marked as completed with more specific information, such as the cause of the
  * failure.  Please note that even failure and cancellation belong to the
  * completed state.
+ * ChannelFuture可以是未完成或已完成。
+ * 当I/O操作开始时，将创建一个新的异步操作结果对象。
+ * 新的异步操作结果对象最初是未完成的 - 它既没有成功，也没有失败，也没有被取消，因为I/O操作还没有完成。
+ * 如果I/O操作成功完成，失败或取消，则将使用更具体的信息(例如失败原因)标记为已完成。
+ * 请注意，即使失败和取消也属于已完成的状态。
  * <pre>
  *                                      +---------------------------+
- *                                      | Completed successfully    |
+ *                                      | Completed successfully    | 成功完成
  *                                      +---------------------------+
  *                                 +---->      isDone() = true      |
- * +--------------------------+    |    |   isSuccess() = true      |
- * |        Uncompleted       |    |    +===========================+
- * +--------------------------+    |    | Completed with failure    |
+ * +--------------------------+    |    |   isSuccess() = true      | 成功
+ * |     Uncompleted/未完成    |    |    +===========================+
+ * +--------------------------+    |    | Completed with failure    | 完成失败
  * |      isDone() = false    |    |    +---------------------------+
  * |   isSuccess() = false    |----+---->      isDone() = true      |
- * | isCancelled() = false    |    |    |       cause() = non-null  |
+ * | isCancelled() = false    |    |    |       cause() = non-null  | 异常原因
  * |       cause() = null     |    |    +===========================+
- * +--------------------------+    |    | Completed by cancellation |
+ * +--------------------------+    |    | Completed by cancellation | 取消完成
  *                                 |    +---------------------------+
  *                                 +---->      isDone() = true      |
- *                                      | isCancelled() = true      |
+ *                                      | isCancelled() = true      | 被取消
  *                                      +---------------------------+
  * </pre>
  *
@@ -64,7 +73,7 @@ import java.util.concurrent.TimeUnit;
  * operation. It also allows you to add {@link ChannelFutureListener}s so you
  * can get notified when the I/O operation is completed.
  *
- * <h3>Prefer {@link #addListener(GenericFutureListener)} to {@link #await()}</h3>
+ * <h3>Prefer {@link #addListener(GenericFutureListener)} to {@link #await()}/首选addListener(GenericFutureListener)来等待</h3>
  *
  * It is recommended to prefer {@link #addListener(GenericFutureListener)} to
  * {@link #await()} wherever possible to get notified when an I/O operation is
@@ -85,7 +94,7 @@ import java.util.concurrent.TimeUnit;
  * expensive cost of inter-thread notification.  Moreover, there's a chance of
  * dead lock in a particular circumstance, which is described below.
  *
- * <h3>Do not call {@link #await()} inside {@link ChannelHandler}</h3>
+ * <h3>Do not call {@link #await()} inside {@link ChannelHandler}/不要在ChannelHandler中调用await()</h3>
  * <p>
  * The event handler methods in {@link ChannelHandler} are usually called by
  * an I/O thread.  If {@link #await()} is called by an event handler
@@ -120,7 +129,7 @@ import java.util.concurrent.TimeUnit;
  * make sure you do not call {@link #await()} in an I/O thread.  Otherwise,
  * {@link BlockingOperationException} will be raised to prevent a dead lock.
  *
- * <h3>Do not confuse I/O timeout and await timeout</h3>
+ * <h3>Do not confuse I/O timeout and await timeout/不要混淆I/O超时和等待超时</h3>
  *
  * The timeout value you specify with {@link #await(long)},
  * {@link #await(long, TimeUnit)}, {@link #awaitUninterruptibly(long)}, or
@@ -167,8 +176,12 @@ public interface ChannelFuture extends Future<Void> {
     /**
      * Returns a channel where the I/O operation associated with this
      * future takes place.
+     * 返回发生I/O操作的数据通道。
      */
     Channel channel();
+
+
+    // 立即通知异步操作的结果的事件监听器
 
     @Override
     ChannelFuture addListener(GenericFutureListener<? extends Future<? super Void>> listener);
@@ -182,11 +195,16 @@ public interface ChannelFuture extends Future<Void> {
     @Override
     ChannelFuture removeListeners(GenericFutureListener<? extends Future<? super Void>>... listeners);
 
+
+    // 同步等待异步操作的结果
+
     @Override
     ChannelFuture sync() throws InterruptedException;
 
     @Override
     ChannelFuture syncUninterruptibly();
+
+    // 等待异步操作完成
 
     @Override
     ChannelFuture await() throws InterruptedException;
