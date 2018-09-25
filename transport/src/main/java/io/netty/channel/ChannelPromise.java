@@ -21,11 +21,14 @@ import io.netty.util.concurrent.Promise;
 
 /**
  * Special {@link ChannelFuture} which is writable.
+ * 一种特殊的可写的ChannelFuture。(以便在数据通道异步操作完成时立即通知)
  */
 public interface ChannelPromise extends ChannelFuture, Promise<Void> {
 
     @Override
     Channel channel();
+
+    // 可写的方法(操作成功/失败)
 
     @Override
     ChannelPromise setSuccess(Void result);
@@ -36,6 +39,9 @@ public interface ChannelPromise extends ChannelFuture, Promise<Void> {
 
     @Override
     ChannelPromise setFailure(Throwable cause);
+
+
+    // 立即通知异步操作的结果的事件监听器
 
     @Override
     ChannelPromise addListener(GenericFutureListener<? extends Future<? super Void>> listener);
@@ -49,11 +55,15 @@ public interface ChannelPromise extends ChannelFuture, Promise<Void> {
     @Override
     ChannelPromise removeListeners(GenericFutureListener<? extends Future<? super Void>>... listeners);
 
+    // 同步等待异步操作的结果
+
     @Override
     ChannelPromise sync() throws InterruptedException;
 
     @Override
     ChannelPromise syncUninterruptibly();
+
+    // 等待异步操作完成
 
     @Override
     ChannelPromise await() throws InterruptedException;
