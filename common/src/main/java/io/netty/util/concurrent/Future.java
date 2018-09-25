@@ -18,9 +18,10 @@ package io.netty.util.concurrent;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
-
 /**
  * The result of an asynchronous operation.
+ * 异步操作的结果。
+ * (java.util.concurrent.Future表示异步计算的结果)
  */
 @SuppressWarnings("ClassNameSameAsAncestorName")
 public interface Future<V> extends java.util.concurrent.Future<V> {
@@ -28,6 +29,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
     /**
      * Returns {@code true} if and only if the I/O operation was completed
      * successfully.
+     * 当且仅当I/O操作成功完成时返回true。
      */
     boolean isSuccess();
 
@@ -39,6 +41,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
     /**
      * Returns the cause of the failed I/O operation if the I/O operation has
      * failed.
+     * 如果I/O操作失败，则返回I/O操作失败的原因。
      *
      * @return the cause of the failure.
      *         {@code null} if succeeded or this future is not
@@ -46,6 +49,8 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      */
     Throwable cause();
 
+
+    // 立即通知异步操作的结果的事件监听器
     /**
      * Adds the specified listener to this future.  The
      * specified listener is notified when this future is
@@ -80,9 +85,12 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      */
     Future<V> removeListeners(GenericFutureListener<? extends Future<? super V>>... listeners);
 
+
+    // 同步等待异步操作的结果
     /**
      * Waits for this future until it is done, and rethrows the cause of the failure if this future
      * failed.
+     * 等待这个异步操作的结果，直到它完成，如果这个异步操作失败，则重新抛出失败的原因。
      */
     Future<V> sync() throws InterruptedException;
 
@@ -94,6 +102,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
 
     /**
      * Waits for this future to be completed.
+     * 等待这个异步操作完成。
      *
      * @throws InterruptedException
      *         if the current thread was interrupted
@@ -107,9 +116,11 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      */
     Future<V> awaitUninterruptibly();
 
+    // 等待异步操作完成
     /**
      * Waits for this future to be completed within the
      * specified time limit.
+     * 等待这个异步操作在指定的时间限制内完成。
      *
      * @return {@code true} if and only if the future was completed within
      *         the specified time limit
@@ -151,8 +162,12 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      */
     boolean awaitUninterruptibly(long timeoutMillis);
 
+
+    // 获取结果
+    /// Future.get(long, TimeUnit)
     /**
      * Return the result without blocking. If the future is not done yet this will return {@code null}.
+     * 无阻塞地返回结果。如果这个异步操作尚未完成，则返回null。
      *
      * As it is possible that a {@code null} value is used to mark the future as successful you also need to check
      * if the future is really done with {@link #isDone()} and not relay on the returned {@code null} value.
@@ -161,8 +176,10 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
 
     /**
      * {@inheritDoc}
+     * 尝试取消这个任务的执行。
      *
      * If the cancellation was successful it will fail the future with an {@link CancellationException}.
+     * 如果操作取消成功，它将来会因CancellationException而失败。
      */
     @Override
     boolean cancel(boolean mayInterruptIfRunning);
