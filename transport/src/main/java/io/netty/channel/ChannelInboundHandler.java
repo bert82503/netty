@@ -55,6 +55,7 @@ public interface ChannelInboundHandler extends ChannelHandler {
      */
     void channelInactive(ChannelHandlerContext ctx) throws Exception;
 
+
     /**
      * Invoked when the current {@link Channel} has read a message from the peer.
      * 当前Channel从对等方读取消息时被调用。
