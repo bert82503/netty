@@ -17,20 +17,20 @@ package io.netty.util.concurrent;
 
 /**
  * Special {@link Future} which is writable.
+ * 一种特殊的可写的Future。(以便在异步操作完成时立即通知)
  */
 public interface Promise<V> extends Future<V> {
 
     /**
-     * Marks this future as a success and notifies all
-     * listeners.
+     * Marks this future as a success and notifies all listeners.
+     * 将这个异步操作标记为成功并通知所有异步操作的结果的事件监听器。
      *
      * If it is success or failed already it will throw an {@link IllegalStateException}.
      */
     Promise<V> setSuccess(V result);
 
     /**
-     * Marks this future as a success and notifies all
-     * listeners.
+     * Marks this future as a success and notifies all listeners.
      *
      * @return {@code true} if and only if successfully marked this future as
      *         a success. Otherwise {@code false} because this future is
@@ -39,16 +39,15 @@ public interface Promise<V> extends Future<V> {
     boolean trySuccess(V result);
 
     /**
-     * Marks this future as a failure and notifies all
-     * listeners.
+     * Marks this future as a failure and notifies all listeners.
      *
      * If it is success or failed already it will throw an {@link IllegalStateException}.
      */
     Promise<V> setFailure(Throwable cause);
 
     /**
-     * Marks this future as a failure and notifies all
-     * listeners.
+     * Marks this future as a failure and notifies all listeners.
+     * 将这个异步操作标记为失败并通知所有异步操作的结果的事件监听器。
      *
      * @return {@code true} if and only if successfully marked this future as
      *         a failure. Otherwise {@code false} because this future is
@@ -58,11 +57,15 @@ public interface Promise<V> extends Future<V> {
 
     /**
      * Make this future impossible to cancel.
+     * 让这个异步操作无法取消。
      *
      * @return {@code true} if and only if successfully marked this future as uncancellable or it is already done
      *         without being cancelled.  {@code false} if this future has been cancelled already.
      */
     boolean setUncancellable();
+
+
+    // 立即通知异步操作的结果的事件监听器
 
     @Override
     Promise<V> addListener(GenericFutureListener<? extends Future<? super V>> listener);
@@ -76,11 +79,16 @@ public interface Promise<V> extends Future<V> {
     @Override
     Promise<V> removeListeners(GenericFutureListener<? extends Future<? super V>>... listeners);
 
+
+    // 等待异步操作完成
+
     @Override
     Promise<V> await() throws InterruptedException;
 
     @Override
     Promise<V> awaitUninterruptibly();
+
+    // 同步等待异步操作的结果
 
     @Override
     Promise<V> sync() throws InterruptedException;
