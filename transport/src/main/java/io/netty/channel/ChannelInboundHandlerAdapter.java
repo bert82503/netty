@@ -94,6 +94,8 @@ public class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter implemen
         ctx.fireChannelInactive();
     }
 
+
+    // 读取入站数据
     /**
      * Calls {@link ChannelHandlerContext#fireChannelRead(Object)} to forward
      * to the next {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
