@@ -81,6 +81,7 @@ public interface ChannelOutboundHandler extends ChannelHandler {
     void deregister(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception;
 
 
+    // 处理出站数据
     /**
      * Intercepts {@link ChannelHandlerContext#read()}.
      * 当请求从Channel读取更多的数据时被调用。

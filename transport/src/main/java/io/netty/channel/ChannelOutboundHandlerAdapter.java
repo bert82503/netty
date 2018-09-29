@@ -20,14 +20,20 @@ import java.net.SocketAddress;
 /**
  * Skeleton implementation of a {@link ChannelOutboundHandler}. This implementation just forwards each method call via
  * the {@link ChannelHandlerContext}.
+ * ChannelOutboundHandler的基本实现。本实现只是通过ChannelHandlerContext转发每个方法调用。
+ * (ChannelOutboundHandler适配器，对象匹配器)
  */
 public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter implements ChannelOutboundHandler {
 
+    // 将ChannelHandlerContext接口转换成ChannelOutboundHandler接口
     /**
      * Calls {@link ChannelHandlerContext#bind(SocketAddress, ChannelPromise)} to forward
      * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
+     * 调用其关联的{@link ChannelHandlerContext#bind(SocketAddress, ChannelPromise)}，
+     * 从而将事件转发到ChannelPipeline中的下一个ChannelOutboundHandler。
      *
      * Sub-classes may override this method to change behavior.
+     * 子类可以重写此方法以更改行为。
      */
     @Override
     public void bind(ChannelHandlerContext ctx, SocketAddress localAddress,
@@ -38,6 +44,8 @@ public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter impleme
     /**
      * Calls {@link ChannelHandlerContext#connect(SocketAddress, SocketAddress, ChannelPromise)} to forward
      * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
+     * 调用其关联的{@link ChannelHandlerContext#connect(SocketAddress, SocketAddress, ChannelPromise)}，
+     * 从而将事件转发到ChannelPipeline中的下一个ChannelOutboundHandler。
      *
      * Sub-classes may override this method to change behavior.
      */
@@ -50,6 +58,8 @@ public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter impleme
     /**
      * Calls {@link ChannelHandlerContext#disconnect(ChannelPromise)} to forward
      * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
+     * 调用其关联的{@link ChannelHandlerContext#disconnect(ChannelPromise)}，
+     * 从而将事件转发到ChannelPipeline中的下一个ChannelOutboundHandler。
      *
      * Sub-classes may override this method to change behavior.
      */
@@ -62,6 +72,8 @@ public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter impleme
     /**
      * Calls {@link ChannelHandlerContext#close(ChannelPromise)} to forward
      * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
+     * 调用其关联的{@link ChannelHandlerContext#close(ChannelPromise)}，
+     * 从而将事件转发到ChannelPipeline中的下一个ChannelOutboundHandler。
      *
      * Sub-classes may override this method to change behavior.
      */
@@ -74,6 +86,8 @@ public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter impleme
     /**
      * Calls {@link ChannelHandlerContext#deregister(ChannelPromise)} to forward
      * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
+     * 调用其关联的{@link ChannelHandlerContext#deregister(ChannelPromise)}，
+     * 从而将事件转发到ChannelPipeline中的下一个ChannelOutboundHandler。
      *
      * Sub-classes may override this method to change behavior.
      */
@@ -82,9 +96,13 @@ public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter impleme
         ctx.deregister(promise);
     }
 
+
+    // 处理出站数据
     /**
      * Calls {@link ChannelHandlerContext#read()} to forward
      * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
+     * 调用其关联的{@link ChannelHandlerContext#read()}，
+     * 从而将事件转发到ChannelPipeline中的下一个ChannelOutboundHandler。
      *
      * Sub-classes may override this method to change behavior.
      */
@@ -96,6 +114,8 @@ public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter impleme
     /**
      * Calls {@link ChannelHandlerContext#write(Object, ChannelPromise)} to forward
      * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
+     * 调用其关联的{@link ChannelHandlerContext#write(Object, ChannelPromise)}，
+     * 从而将事件转发到ChannelPipeline中的下一个ChannelOutboundHandler。
      *
      * Sub-classes may override this method to change behavior.
      */
@@ -107,6 +127,8 @@ public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter impleme
     /**
      * Calls {@link ChannelHandlerContext#flush()} to forward
      * to the next {@link ChannelOutboundHandler} in the {@link ChannelPipeline}.
+     * 调用其关联的{@link ChannelHandlerContext#flush()}，
+     * 从而将事件转发到ChannelPipeline中的下一个ChannelOutboundHandler。
      *
      * Sub-classes may override this method to change behavior.
      */
