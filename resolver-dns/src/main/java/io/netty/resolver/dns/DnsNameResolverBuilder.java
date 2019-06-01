@@ -20,8 +20,10 @@ import io.netty.channel.EventLoop;
 import io.netty.channel.ReflectiveChannelFactory;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.InternetProtocolFamily;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.resolver.HostsFileEntriesResolver;
 import io.netty.resolver.ResolvedAddressTypes;
+import io.netty.util.concurrent.Future;
 import io.netty.util.internal.UnstableApi;
 
 import java.util.ArrayList;
@@ -39,13 +41,16 @@ import static io.netty.util.internal.ObjectUtil.intValue;
 public final class DnsNameResolverBuilder {
     private EventLoop eventLoop;
     private ChannelFactory<? extends DatagramChannel> channelFactory;
+    private ChannelFactory<? extends SocketChannel> socketChannelFactory;
     private DnsCache resolveCache;
+    private DnsCnameCache cnameCache;
     private AuthoritativeDnsServerCache authoritativeDnsServerCache;
     private Integer minTtl;
     private Integer maxTtl;
     private Integer negativeTtl;
     private long queryTimeoutMillis = 5000;
     private ResolvedAddressTypes resolvedAddressTypes = DnsNameResolver.DEFAULT_RESOLVE_ADDRESS_TYPES;
+    private boolean completeOncePreferredResolved;
     private boolean recursionDesired = true;
     private int maxQueriesPerResolve = 16;
     private boolean traceEnabled;
@@ -113,6 +118,35 @@ public final class DnsNameResolverBuilder {
     }
 
     /**
+     * Sets the {@link ChannelFactory} that will create a {@link SocketChannel} for
+     * <a href="https://tools.ietf.org/html/rfc7766">TCP fallback</a> if needed.
+     *
+     * @param channelFactory the {@link ChannelFactory} or {@code null}
+     *                       if <a href="https://tools.ietf.org/html/rfc7766">TCP fallback</a> should not be supported.
+     * @return {@code this}
+     */
+    public DnsNameResolverBuilder socketChannelFactory(ChannelFactory<? extends SocketChannel> channelFactory) {
+        this.socketChannelFactory = channelFactory;
+        return this;
+    }
+
+    /**
+     * Sets the {@link ChannelFactory} as a {@link ReflectiveChannelFactory} of this type for
+     * <a href="https://tools.ietf.org/html/rfc7766">TCP fallback</a> if needed.
+     * Use as an alternative to {@link #socketChannelFactory(ChannelFactory)}.
+     *
+     * @param channelType the type or {@code null} if <a href="https://tools.ietf.org/html/rfc7766">TCP fallback</a>
+     *                    should not be supported.
+     * @return {@code this}
+     */
+    public DnsNameResolverBuilder socketChannelType(Class<? extends SocketChannel> channelType) {
+        if (channelType == null) {
+            return socketChannelFactory(null);
+        }
+        return socketChannelFactory(new ReflectiveChannelFactory<SocketChannel>(channelType));
+    }
+
+    /**
      * Sets the cache for resolution results.
      *
      * @param resolveCache the DNS resolution results cache
@@ -120,6 +154,17 @@ public final class DnsNameResolverBuilder {
      */
     public DnsNameResolverBuilder resolveCache(DnsCache resolveCache) {
         this.resolveCache  = resolveCache;
+        return this;
+    }
+
+    /**
+     * Sets the cache for {@code CNAME} mappings.
+     *
+     * @param cnameCache the cache used to cache {@code CNAME} mappings for a domain.
+     * @return {@code this}
+     */
+    public DnsNameResolverBuilder cnameCache(DnsCnameCache cnameCache) {
+        this.cnameCache  = cnameCache;
         return this;
     }
 
@@ -238,6 +283,18 @@ public final class DnsNameResolverBuilder {
      */
     public DnsNameResolverBuilder resolvedAddressTypes(ResolvedAddressTypes resolvedAddressTypes) {
         this.resolvedAddressTypes = resolvedAddressTypes;
+        return this;
+    }
+
+    /**
+     * If {@code true} {@link DnsNameResolver#resolveAll(String)} will notify the returned {@link Future} as
+     * soon as all queries for the preferred address-type are complete.
+     *
+     * @param completeOncePreferredResolved {@code true} to enable, {@code false} to disable.
+     * @return {@code this}
+     */
+    public DnsNameResolverBuilder completeOncePreferredResolved(boolean completeOncePreferredResolved) {
+        this.completeOncePreferredResolved = completeOncePreferredResolved;
         return this;
     }
 
@@ -376,6 +433,11 @@ public final class DnsNameResolverBuilder {
                 new NameServerComparator(DnsNameResolver.preferredAddressType(resolvedAddressTypes).addressType()));
     }
 
+    private DnsCnameCache newCnameCache() {
+        return new DefaultDnsCnameCache(
+                intValue(minTtl, 0), intValue(maxTtl, Integer.MAX_VALUE));
+    }
+
     /**
      * Set if domain / host names should be decoded to unicode when received.
      * See <a href="https://tools.ietf.org/html/rfc3492">rfc3492</a>.
@@ -407,12 +469,15 @@ public final class DnsNameResolverBuilder {
         }
 
         DnsCache resolveCache = this.resolveCache != null ? this.resolveCache : newCache();
+        DnsCnameCache cnameCache = this.cnameCache != null ? this.cnameCache : newCnameCache();
         AuthoritativeDnsServerCache authoritativeDnsServerCache = this.authoritativeDnsServerCache != null ?
                 this.authoritativeDnsServerCache : newAuthoritativeDnsServerCache();
         return new DnsNameResolver(
                 eventLoop,
                 channelFactory,
+                socketChannelFactory,
                 resolveCache,
+                cnameCache,
                 authoritativeDnsServerCache,
                 dnsQueryLifecycleObserverFactory,
                 queryTimeoutMillis,
@@ -426,7 +491,8 @@ public final class DnsNameResolverBuilder {
                 dnsServerAddressStreamProvider,
                 searchDomains,
                 ndots,
-                decodeIdn);
+                decodeIdn,
+                completeOncePreferredResolved);
     }
 
     /**
@@ -445,10 +511,17 @@ public final class DnsNameResolverBuilder {
             copiedBuilder.channelFactory(channelFactory);
         }
 
+        if (socketChannelFactory != null) {
+            copiedBuilder.socketChannelFactory(socketChannelFactory);
+        }
+
         if (resolveCache != null) {
             copiedBuilder.resolveCache(resolveCache);
         }
 
+        if (cnameCache != null) {
+            copiedBuilder.cnameCache(cnameCache);
+        }
         if (maxTtl != null && minTtl != null) {
             copiedBuilder.ttl(minTtl, maxTtl);
         }
@@ -484,6 +557,7 @@ public final class DnsNameResolverBuilder {
 
         copiedBuilder.ndots(ndots);
         copiedBuilder.decodeIdn(decodeIdn);
+        copiedBuilder.completeOncePreferredResolved(completeOncePreferredResolved);
 
         return copiedBuilder;
     }

@@ -19,7 +19,7 @@
   <parent>
     <groupId>io.netty</groupId>
     <artifactId>netty-parent</artifactId>
-    <version>4.1.30.Final-SNAPSHOT</version>
+    <version>4.1.37.Final-SNAPSHOT</version>
   </parent>
   <artifactId>netty-transport-native-kqueue</artifactId>
 
@@ -80,17 +80,16 @@
                   <configureArgs>
                     <arg>${jni.compiler.args.ldflags}</arg>
                     <arg>${jni.compiler.args.cflags}</arg>
-                    <!-- support for __attribute__((weak_import)) by the linker was added in 10.2 so ensure we
+                    <!-- support for __attribute__((weak_import)) by the linker was added in 10.2 (but 10.6 is the minimum we can use on 10.14) so ensure we
                          explicitly set the target platform. Otherwise we may get fatal link errors due to weakly linked
                          methods which are not expected to be present on MacOS (e.g. accept4). -->
-                    <arg>MACOSX_DEPLOYMENT_TARGET=10.2</arg>
+                    <arg>MACOSX_DEPLOYMENT_TARGET=10.6</arg>
                   </configureArgs>
                 </configuration>
                 <goals>
                   <goal>generate</goal>
                   <goal>build</goal>
                 </goals>
-                <phase>compile</phase>
               </execution>
             </executions>
           </plugin>
@@ -198,7 +197,6 @@
                   <goal>generate</goal>
                   <goal>build</goal>
                 </goals>
-                <phase>compile</phase>
               </execution>
             </executions>
           </plugin>
@@ -305,7 +303,6 @@
                   <goal>generate</goal>
                   <goal>build</goal>
                 </goals>
-                <phase>compile</phase>
               </execution>
             </executions>
           </plugin>
@@ -355,8 +352,8 @@
 
   <properties>
     <javaModuleName>io.netty.transport.kqueue</javaModuleName>
-    <!-- Needed by the native transport as we need the memoryAddress of the ByteBuffer -->
-    <argLine.java9.extras>--add-exports java.base/sun.security.x509=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED</argLine.java9.extras>
+    <!-- Needed as we use SelfSignedCertificate in our tests -->
+    <argLine.java9.extras>--add-exports java.base/sun.security.x509=ALL-UNNAMED</argLine.java9.extras>
     <unix.common.lib.name>netty-unix-common</unix.common.lib.name>
     <unix.common.lib.dir>${project.build.directory}/unix-common-lib</unix.common.lib.dir>
     <unix.common.lib.unpacked.dir>${unix.common.lib.dir}/META-INF/native/lib</unix.common.lib.unpacked.dir>
@@ -379,12 +376,12 @@
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
-      <artifactId>netty-transport-native-unix-common</artifactId>
+      <artifactId>netty-transport</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
-      <artifactId>netty-transport</artifactId>
+      <artifactId>netty-transport-native-unix-common</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

@@ -32,10 +32,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Queue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -44,7 +41,7 @@ import static java.lang.Math.min;
 /**
  * {@link EventLoop} which uses epoll under the covers. Only works on Linux!
  */
-final class EpollEventLoop extends SingleThreadEventLoop {
+class EpollEventLoop extends SingleThreadEventLoop {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(EpollEventLoop.class);
     private static final AtomicIntegerFieldUpdater<EpollEventLoop> WAKEN_UP_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(EpollEventLoop.class, "wakenUp");
@@ -75,6 +72,7 @@ final class EpollEventLoop extends SingleThreadEventLoop {
             return epollWaitNow();
         }
     };
+    @SuppressWarnings("unused") // AtomicIntegerFieldUpdater
     private volatile int wakenUp;
     private volatile int ioRatio = 50;
 
@@ -100,12 +98,16 @@ final class EpollEventLoop extends SingleThreadEventLoop {
             this.epollFd = epollFd = Native.newEpollCreate();
             this.eventFd = eventFd = Native.newEventFd();
             try {
-                Native.epollCtlAdd(epollFd.intValue(), eventFd.intValue(), Native.EPOLLIN);
+                // It is important to use EPOLLET here as we only want to get the notification once per
+                // wakeup and don't call eventfd_read(...).
+                Native.epollCtlAdd(epollFd.intValue(), eventFd.intValue(), Native.EPOLLIN | Native.EPOLLET);
             } catch (IOException e) {
                 throw new IllegalStateException("Unable to add eventFd filedescriptor to epoll", e);
             }
             this.timerFd = timerFd = Native.newTimerFd();
             try {
+                // It is important to use EPOLLET here as we only want to get the notification once per
+                // wakeup and don't call read(...).
                 Native.epollCtlAdd(epollFd.intValue(), timerFd.intValue(), Native.EPOLLIN | Native.EPOLLET);
             } catch (IOException e) {
                 throw new IllegalStateException("Unable to add timerFd filedescriptor to epoll", e);
@@ -177,7 +179,11 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         assert inEventLoop();
         int fd = ch.socket.intValue();
         Native.epollCtlAdd(epollFd.intValue(), fd, ch.flags);
-        channels.put(fd, ch);
+        AbstractEpollChannel old = channels.put(fd, ch);
+
+        // We either expect to have no Channel in the map with the same FD or that the FD of the old Channel is already
+        // closed.
+        assert old == null || !old.isOpen();
     }
 
     /**
@@ -193,14 +199,19 @@ final class EpollEventLoop extends SingleThreadEventLoop {
      */
     void remove(AbstractEpollChannel ch) throws IOException {
         assert inEventLoop();
+        int fd = ch.socket.intValue();
 
-        if (ch.isOpen()) {
-            int fd = ch.socket.intValue();
-            if (channels.remove(fd) != null) {
-                // Remove the epoll. This is only needed if it's still open as otherwise it will be automatically
-                // removed once the file-descriptor is closed.
-                Native.epollCtlDel(epollFd.intValue(), ch.fd().intValue());
-            }
+        AbstractEpollChannel old = channels.remove(fd);
+        if (old != null && old != ch) {
+            // The Channel mapping was already replaced due FD reuse, put back the stored Channel.
+            channels.put(fd, old);
+
+            // If we found another Channel in the map that is mapped to the same FD the given Channel MUST be closed.
+            assert !ch.isOpen();
+        } else if (ch.isOpen()) {
+            // Remove the epoll. This is only needed if it's still open as otherwise it will be automatically
+            // removed once the file-descriptor is closed.
+            Native.epollCtlDel(epollFd.intValue(), fd);
         }
     }
 
@@ -229,6 +240,11 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         this.ioRatio = ioRatio;
     }
 
+    @Override
+    public int registeredChannels() {
+        return channels.size();
+    }
+
     private int epollWait(boolean oldWakeup) throws IOException {
         // If a task was submitted when wakenUp value was 1, the task didn't get a chance to produce wakeup event.
         // So we need to check task queue again before calling epoll_wait. If we don't, the task might be pended
@@ -248,13 +264,17 @@ final class EpollEventLoop extends SingleThreadEventLoop {
             long totalDelay = delayNanos(System.nanoTime());
             prevDeadlineNanos = curDeadlineNanos;
             delaySeconds = (int) min(totalDelay / 1000000000L, Integer.MAX_VALUE);
-            delayNanos = (int) min(totalDelay - delaySeconds * 1000000000L, Integer.MAX_VALUE);
+            delayNanos = (int) min(totalDelay - delaySeconds * 1000000000L, MAX_SCHEDULED_TIMERFD_NS);
         }
         return Native.epollWait(epollFd, events, timerFd, delaySeconds, delayNanos);
     }
 
     private int epollWaitNow() throws IOException {
         return Native.epollWait(epollFd, events, timerFd, 0, 0);
+    }
+
+    private int epollBusyWait() throws IOException {
+        return Native.epollBusyWait(epollFd, events);
     }
 
     @Override
@@ -265,6 +285,11 @@ final class EpollEventLoop extends SingleThreadEventLoop {
                 switch (strategy) {
                     case SelectStrategy.CONTINUE:
                         continue;
+
+                    case SelectStrategy.BUSY_WAIT:
+                        strategy = epollBusyWait();
+                        break;
+
                     case SelectStrategy.SELECT:
                         strategy = epollWait(WAKEN_UP_UPDATER.getAndSet(this, 0) == 1);
 
@@ -347,7 +372,10 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         }
     }
 
-    private static void handleLoopException(Throwable t) {
+    /**
+     * Visible only for testing!
+     */
+    void handleLoopException(Throwable t) {
         logger.warn("Unexpected exception in the selector loop.", t);
 
         // Prevent possible consecutive immediate failures that lead to
@@ -365,15 +393,12 @@ final class EpollEventLoop extends SingleThreadEventLoop {
         } catch (IOException ignore) {
             // ignore on close
         }
+
         // Using the intermediate collection to prevent ConcurrentModificationException.
         // In the `close()` method, the channel is deleted from `channels` map.
-        Collection<AbstractEpollChannel> array = new ArrayList<AbstractEpollChannel>(channels.size());
+        AbstractEpollChannel[] localChannels = channels.values().toArray(new AbstractEpollChannel[0]);
 
-        for (AbstractEpollChannel channel: channels.values()) {
-            array.add(channel);
-        }
-
-        for (AbstractEpollChannel ch: array) {
+        for (AbstractEpollChannel ch: localChannels) {
             ch.unsafe().close(ch.unsafe().voidPromise());
         }
     }
@@ -381,12 +406,10 @@ final class EpollEventLoop extends SingleThreadEventLoop {
     private void processReady(EpollEventArray events, int ready) {
         for (int i = 0; i < ready; i ++) {
             final int fd = events.fd(i);
-            if (fd == eventFd.intValue()) {
-                // consume wakeup event.
-                Native.eventFdRead(fd);
-            } else if (fd == timerFd.intValue()) {
-                // consume wakeup event, necessary because the timer is added with ET mode.
-                Native.timerFdRead(fd);
+            if (fd == eventFd.intValue() || fd == timerFd.intValue()) {
+                // Just ignore as we use ET mode for the eventfd and timerfd.
+                //
+                // See also https://stackoverflow.com/a/12492308/1074097
             } else {
                 final long ev = events.events(i);
 

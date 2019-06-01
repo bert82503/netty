@@ -194,7 +194,7 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
 
     @Override
     public ByteBuf getBytes(int index, ByteBuffer dst) {
-        checkIndex(index, dst.remaining());
+        ensureAccessible();
         dst.put(array, index, dst.remaining());
         return this;
     }
@@ -536,7 +536,7 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
     @Override
     public ByteBuf copy(int index, int length) {
         checkIndex(index, length);
-        byte[] copiedArray = new byte[length];
+        byte[] copiedArray = PlatformDependent.allocateUninitializedArray(length);
         System.arraycopy(array, index, copiedArray, 0, length);
         return new UnpooledHeapByteBuf(alloc(), copiedArray, maxCapacity());
     }
