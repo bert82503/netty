@@ -25,14 +25,14 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
  * traffic between the echo client and server by sending the first message to
  * the server.
  */
-public class EchoClientHandler extends ChannelInboundHandlerAdapter {
+class EchoClientHandler extends ChannelInboundHandlerAdapter {
 
     private final ByteBuf firstMessage;
 
     /**
      * Creates a client-side handler.
      */
-    public EchoClientHandler() {
+    EchoClientHandler() {
         firstMessage = Unpooled.buffer(EchoClient.SIZE);
         for (int i = 0; i < firstMessage.capacity(); i ++) {
             firstMessage.writeByte((byte) i);
