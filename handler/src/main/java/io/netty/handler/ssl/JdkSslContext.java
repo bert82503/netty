@@ -79,7 +79,7 @@ public class JdkSslContext extends SslContext {
         DEFAULT_PROVIDER = context.getProvider();
 
         SSLEngine engine = context.createSSLEngine();
-        DEFAULT_PROTOCOLS = defaultProtocols(engine);
+        DEFAULT_PROTOCOLS = defaultProtocols(context, engine);
 
         SUPPORTED_CIPHERS = Collections.unmodifiableSet(supportedCiphers(engine));
         DEFAULT_CIPHERS = Collections.unmodifiableList(defaultCiphers(engine, SUPPORTED_CIPHERS));
@@ -98,13 +98,11 @@ public class JdkSslContext extends SslContext {
         }
     }
 
-    private static String[] defaultProtocols(SSLEngine engine) {
-        // Choose the sensible default list of protocols.
-        final String[] supportedProtocols = engine.getSupportedProtocols();
+    private static String[] defaultProtocols(SSLContext context, SSLEngine engine) {
+        // Choose the sensible default list of protocols that respects JDK flags, eg. jdk.tls.client.protocols
+        final String[] supportedProtocols = context.getDefaultSSLParameters().getProtocols();
         Set<String> supportedProtocolsSet = new HashSet<String>(supportedProtocols.length);
-        for (int i = 0; i < supportedProtocols.length; ++i) {
-            supportedProtocolsSet.add(supportedProtocols[i]);
-        }
+        Collections.addAll(supportedProtocolsSet, supportedProtocols);
         List<String> protocols = new ArrayList<String>();
         addIfSupported(
                 supportedProtocolsSet, protocols,
@@ -263,7 +261,7 @@ public class JdkSslContext extends SslContext {
             SSLEngine engine = sslContext.createSSLEngine();
             try {
                 if (protocols == null) {
-                    this.protocols = defaultProtocols(engine);
+                    this.protocols = defaultProtocols(sslContext, engine);
                 } else {
                     this.protocols = protocols;
                 }
