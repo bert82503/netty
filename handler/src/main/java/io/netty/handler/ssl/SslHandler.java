@@ -845,7 +845,15 @@ public class SslHandler extends ByteToMessageDecoder implements ChannelOutboundH
                 if (result.getStatus() == Status.CLOSED) {
                     buf.release();
                     buf = null;
-                    SSLException exception = new SSLException("SSLEngine closed already");
+                    // Make a best effort to preserve any exception that way previously encountered from the handshake
+                    // or the transport, else fallback to a general error.
+                    Throwable exception = handshakePromise.cause();
+                    if (exception == null) {
+                        exception = sslClosePromise.cause();
+                        if (exception == null) {
+                            exception = new SSLException("SSLEngine closed already");
+                        }
+                    }
                     promise.tryFailure(exception);
                     promise = null;
                     // SSLEngine has been closed already.
@@ -1788,7 +1796,12 @@ public class SslHandler extends ByteToMessageDecoder implements ChannelOutboundH
         handshakePromise.trySuccess(ctx.channel());
 
         if (logger.isDebugEnabled()) {
-            logger.debug("{} HANDSHAKEN: {}", ctx.channel(), engine.getSession().getCipherSuite());
+            SSLSession session = engine.getSession();
+            logger.debug(
+              "{} HANDSHAKEN: protocol:{} cipher suite:{}",
+              ctx.channel(),
+              session.getProtocol(),
+              session.getCipherSuite());
         }
         ctx.fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
 
