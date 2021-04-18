@@ -21,7 +21,12 @@ import io.netty.util.concurrent.FutureListener;
 import java.net.ConnectException;
 import java.net.SocketAddress;
 
+/**
+ * 处理通道出站数据的操作。
+ */
 public interface ChannelOutboundInvoker {
+
+    // 套接字的所有I/O操作(绑定本地地址，连接远程地址，连接，断开连接，关闭)
 
     /**
      * Request to bind to the given {@link SocketAddress} and notify the {@link ChannelFuture} once the operation
@@ -86,6 +91,8 @@ public interface ChannelOutboundInvoker {
      */
     ChannelFuture close();
 
+    // 结果监视器取消注册
+
     /**
      * Request to deregister from the previous assigned {@link EventExecutor} and notify the
      * {@link ChannelFuture} once the operation completes, either because the operation was successful or because of
@@ -98,6 +105,8 @@ public interface ChannelOutboundInvoker {
      *
      */
     ChannelFuture deregister();
+
+    // ChannelPromise：可写的异步通道I/O操作的结果
 
     /**
      * Request to bind to the given {@link SocketAddress} and notify the {@link ChannelFuture} once the operation
@@ -186,6 +195,8 @@ public interface ChannelOutboundInvoker {
      */
     ChannelFuture deregister(ChannelPromise promise);
 
+    // 通道出站数据的操作
+
     /**
      * Request to Read data from the {@link Channel} into the first inbound buffer, triggers an
      * {@link ChannelInboundHandler#channelRead(ChannelHandlerContext, Object)} event if data was
@@ -238,6 +249,8 @@ public interface ChannelOutboundInvoker {
      * Return an new {@link ChannelProgressivePromise}
      */
     ChannelProgressivePromise newProgressivePromise();
+
+    // 异步通道I/O操作的结果
 
     /**
      * Create a new {@link ChannelFuture} which is marked as succeeded already. So {@link ChannelFuture#isSuccess()}
