@@ -17,12 +17,16 @@ package io.netty.util.concurrent;
 
 /**
  * Special {@link Future} which is writable.
+ * 可写的异步操作的结果。
  */
 public interface Promise<V> extends Future<V> {
+
+    // I/O操作状态设置(成功、失败、取消)
 
     /**
      * Marks this future as a success and notifies all
      * listeners.
+     * 将这个异步操作的结果标记为成功，并通知所有的监视器。
      *
      * If it is success or failed already it will throw an {@link IllegalStateException}.
      */
@@ -64,6 +68,8 @@ public interface Promise<V> extends Future<V> {
      */
     boolean setUncancellable();
 
+    // 结果监视器
+
     @Override
     Promise<V> addListener(GenericFutureListener<? extends Future<? super V>> listener);
 
@@ -75,6 +81,8 @@ public interface Promise<V> extends Future<V> {
 
     @Override
     Promise<V> removeListeners(GenericFutureListener<? extends Future<? super V>>... listeners);
+
+    // 结果获取(同步等待)
 
     @Override
     Promise<V> await() throws InterruptedException;
