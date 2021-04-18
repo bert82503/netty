@@ -18,19 +18,23 @@ package io.netty.channel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
-
 /**
  * Listens to the result of a {@link ChannelFuture}.  The result of the
  * asynchronous {@link Channel} I/O operation is notified once this listener
  * is added by calling {@link ChannelFuture#addListener(GenericFutureListener)}.
+ * 监视异步通道I/O操作的结果。
+ * 一旦通过{@link ChannelFuture#addListener(GenericFutureListener)}添加了这个结果监视器，
+ * 就会通知异步通道I/O操作的结果。
  *
- * <h3>Return the control to the caller quickly</h3>
+ * <h3>Return the control to the caller quickly</h3> 迅速将控件返回给调用者
  *
  * {@link #operationComplete(Future)} is directly called by an I/O
  * thread.  Therefore, performing a time consuming task or a blocking operation
  * in the handler method can cause an unexpected pause during I/O.  If you need
  * to perform a blocking operation on I/O completion, try to execute the
  * operation in a different thread using a thread pool.
+ * {@link #operationComplete(Future)}是由一个I/O线程直接调用。
+ * 如果您需要在I/O完成时执行阻塞操作，请尝试使用线程池在不同的线程中执行该操作。
  */
 public interface ChannelFutureListener extends GenericFutureListener<ChannelFuture> {
 
