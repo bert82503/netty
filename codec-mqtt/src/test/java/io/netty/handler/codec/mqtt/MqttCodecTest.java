@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -518,11 +518,18 @@ public class MqttCodecTest {
     public void testPublishMessageForMqtt5() throws Exception {
         when(versionAttrMock.get()).thenReturn(MqttVersion.MQTT_5);
         MqttProperties props = new MqttProperties();
+        props.add(new MqttProperties.IntegerProperty(SUBSCRIPTION_IDENTIFIER.value(), 10));
+        props.add(new MqttProperties.IntegerProperty(SUBSCRIPTION_IDENTIFIER.value(), 20));
         props.add(new MqttProperties.IntegerProperty(PAYLOAD_FORMAT_INDICATOR.value(), 6));
         props.add(new MqttProperties.UserProperty("isSecret", "true"));
-        props.add(new MqttProperties.UserProperty("isUrgent", "false"));
-        assertEquals("User properties count mismatch",
-                ((MqttProperties.UserProperties) props.getProperty(USER_PROPERTY.value())).value.size(), 2);
+        props.add(new MqttProperties.UserProperty("tag", "firstTag"));
+        props.add(new MqttProperties.UserProperty("tag", "secondTag"));
+        assertEquals("Subscription IDs count mismatch", 2,
+                (props.getProperties(SUBSCRIPTION_IDENTIFIER.value())).size());
+        assertEquals("User properties count mismatch", 3,
+                (props.getProperties(USER_PROPERTY.value())).size());
+        assertEquals("UserProperties count mismatch", 3,
+                ((MqttProperties.UserProperties) props.getProperty(USER_PROPERTY.value())).value.size());
         final MqttPublishMessage message = createPublishMessage(props);
         ByteBuf byteBuf = MqttEncoder.doEncode(ctx, message);
 
@@ -581,7 +588,7 @@ public class MqttCodecTest {
     public void testSubAckMessageForMqtt5() throws Exception {
         MqttProperties props = new MqttProperties();
         props.add(new MqttProperties.IntegerProperty(PAYLOAD_FORMAT_INDICATOR.value(), 6));
-        final MqttSubAckMessage message = createSubAckMessage(props);
+        final MqttSubAckMessage message = createSubAckMessage(props, new int[] {1, 2, 0, 0x87 /* not authorized */});
         ByteBuf byteBuf = MqttEncoder.doEncode(ctx, message);
 
         final List<Object> out = new LinkedList<Object>();
@@ -595,6 +602,11 @@ public class MqttCodecTest {
         validatePacketIdAndPropertiesVariableHeader(
                 (MqttMessageIdAndPropertiesVariableHeader) message.variableHeader(),
                 (MqttMessageIdAndPropertiesVariableHeader) decodedMessage.variableHeader());
+        validateSubAckPayload(message.payload(), decodedMessage.payload());
+        assertArrayEquals(
+                "MqttSubAckPayload QoS mismatch ",
+                new Integer[] {1, 2, 0, 0x80},
+                decodedMessage.payload().grantedQoSLevels().toArray());
     }
 
     @Test
@@ -626,6 +638,43 @@ public class MqttCodecTest {
                 (MqttMessageIdAndPropertiesVariableHeader) decodedMessage.variableHeader();
         validatePacketIdAndPropertiesVariableHeader(expectedHeader, actualHeader);
         validateSubscribePayload(message.payload(), decodedMessage.payload());
+    }
+
+    @Test
+    public void testSubscribeMessageMqtt5EncodeAsMqtt3() throws Exception {
+        when(versionAttrMock.get()).thenReturn(MqttVersion.MQTT_3_1_1);
+
+        //Set parameters only available in MQTT5 to see if they're dropped when encoding as MQTT3
+        MqttProperties props = new MqttProperties();
+        props.add(new MqttProperties.IntegerProperty(PAYLOAD_FORMAT_INDICATOR.value(), 6));
+        final MqttSubscribeMessage message = MqttMessageBuilders.subscribe()
+                .messageId((short) 1)
+                .properties(props)
+                .addSubscription("/topic", new MqttSubscriptionOption(AT_LEAST_ONCE,
+                        true,
+                        true,
+                        SEND_AT_SUBSCRIBE_IF_NOT_YET_EXISTS))
+                .build();
+        ByteBuf byteBuf = MqttEncoder.doEncode(ctx, message);
+
+        final List<Object> out = new LinkedList<Object>();
+
+        mqttDecoder.decode(ctx, byteBuf, out);
+
+        assertEquals("Expected one object but got " + out.size(), 1, out.size());
+        final MqttSubscribeMessage decodedMessage = (MqttSubscribeMessage) out.get(0);
+
+        final MqttSubscribeMessage expectedMessage = MqttMessageBuilders.subscribe()
+                .messageId((short) 1)
+                .addSubscription("/topic", MqttSubscriptionOption.onlyFromQos(AT_LEAST_ONCE))
+                .build();
+        validateFixedHeaders(expectedMessage.fixedHeader(), decodedMessage.fixedHeader());
+        final MqttMessageIdAndPropertiesVariableHeader expectedHeader =
+                (MqttMessageIdAndPropertiesVariableHeader) expectedMessage.variableHeader();
+        final MqttMessageIdAndPropertiesVariableHeader actualHeader =
+                (MqttMessageIdAndPropertiesVariableHeader) decodedMessage.variableHeader();
+        validatePacketIdAndPropertiesVariableHeader(expectedHeader, actualHeader);
+        validateSubscribePayload(expectedMessage.payload(), decodedMessage.payload());
     }
 
     @Test
@@ -872,14 +921,14 @@ public class MqttCodecTest {
     }
 
     private static MqttSubAckMessage createSubAckMessage() {
-        return createSubAckMessage(MqttProperties.NO_PROPERTIES);
+        return createSubAckMessage(MqttProperties.NO_PROPERTIES, new int[] {1, 2, 0});
     }
 
-    private static MqttSubAckMessage createSubAckMessage(MqttProperties properties) {
+    private static MqttSubAckMessage createSubAckMessage(MqttProperties properties, int[] reasonCodes) {
         MqttFixedHeader mqttFixedHeader =
                 new MqttFixedHeader(MqttMessageType.SUBACK, false, MqttQoS.AT_MOST_ONCE, false, 0);
         MqttMessageIdVariableHeader mqttMessageIdVariableHeader = MqttMessageIdVariableHeader.from(12345);
-        MqttSubAckPayload mqttSubAckPayload = new MqttSubAckPayload(1, 2, 0);
+        MqttSubAckPayload mqttSubAckPayload = new MqttSubAckPayload(reasonCodes);
         return new MqttSubAckMessage(mqttFixedHeader, mqttMessageIdVariableHeader, mqttSubAckPayload);
     }
 
@@ -986,7 +1035,11 @@ public class MqttCodecTest {
 
     private static void validateSubAckPayload(MqttSubAckPayload expected, MqttSubAckPayload actual) {
         assertArrayEquals(
-                "MqttSubAckPayload GrantedQosLevels mismatch ",
+                "MqttSubAckPayload reason codes mismatch ",
+                expected.reasonCodes().toArray(),
+                actual.reasonCodes().toArray());
+        assertArrayEquals(
+                "MqttSubAckPayload QoS level mismatch ",
                 expected.grantedQoSLevels().toArray(),
                 actual.grantedQoSLevels().toArray());
     }

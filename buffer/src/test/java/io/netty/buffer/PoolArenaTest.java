@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -100,26 +100,6 @@ public class PoolArenaTest {
         PoolArena<ByteBuffer> arena = new PoolArena.DirectArena(null, PAGE_SIZE, PAGE_SHIFTS, CHUNK_SIZE, 0);
         for (int i = 0; i < arena.nPSizes; i++) {
             assertEquals(arena.pageIdx2sizeCompute(i), arena.pageIdx2size(i));
-        }
-    }
-
-    @Test
-    public void testDirectArenaOffsetCacheLine() throws Exception {
-        assumeTrue(PlatformDependent.hasUnsafe());
-        int capacity = 5;
-        int alignment = 128;
-
-        for (int i = 0; i < 1000; i++) {
-            ByteBuffer bb = PlatformDependent.useDirectBufferNoCleaner()
-                    ? PlatformDependent.allocateDirectNoCleaner(capacity + alignment)
-                    : ByteBuffer.allocateDirect(capacity + alignment);
-
-            PoolArena.DirectArena arena = new PoolArena.DirectArena(null, 512, 9, 512, alignment);
-            int offset = arena.offsetCacheLine(bb);
-            long address = PlatformDependent.directBufferAddress(bb);
-
-            Assert.assertEquals(0, (offset + address) & (alignment - 1));
-            PlatformDependent.freeDirectBuffer(bb);
         }
     }
 
