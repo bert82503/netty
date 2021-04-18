@@ -18,16 +18,19 @@ package io.netty.util.concurrent;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
-
 /**
  * The result of an asynchronous operation.
+ * 异步操作的结果。
  */
 @SuppressWarnings("ClassNameSameAsAncestorName")
 public interface Future<V> extends java.util.concurrent.Future<V> {
 
+    // I/O操作状态(成功、取消、失败)
+
     /**
      * Returns {@code true} if and only if the I/O operation was completed
      * successfully.
+     * I/O操作已成功完成
      */
     boolean isSuccess();
 
@@ -45,6 +48,8 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      *         completed yet.
      */
     Throwable cause();
+
+    // 结果监视器
 
     /**
      * Adds the specified listener to this future.  The
@@ -79,6 +84,8 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * does nothing and returns silently.
      */
     Future<V> removeListeners(GenericFutureListener<? extends Future<? super V>>... listeners);
+
+    // 结果获取(同步等待)
 
     /**
      * Waits for this future until it is done, and rethrows the cause of the failure if this future
