@@ -21,6 +21,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -227,7 +228,7 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
         if (serverConfig.decoderConfig().withUTF8Validator() && cp.get(Utf8FrameValidator.class) == null) {
             // Add the UFT8 checking before this one.
             cp.addBefore(ctx.name(), Utf8FrameValidator.class.getName(),
-                    new Utf8FrameValidator());
+                    new Utf8FrameValidator(serverConfig.decoderConfig().closeOnProtocolViolation()));
         }
     }
 
@@ -237,7 +238,9 @@ public class WebSocketServerProtocolHandler extends WebSocketProtocolHandler {
             WebSocketServerHandshaker handshaker = getHandshaker(ctx.channel());
             if (handshaker != null) {
                 frame.retain();
-                handshaker.close(ctx.channel(), (CloseWebSocketFrame) frame);
+                ChannelPromise promise = ctx.newPromise();
+                closeSent(promise);
+                handshaker.close(ctx, (CloseWebSocketFrame) frame, promise);
             } else {
                 ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
             }

@@ -19,12 +19,15 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.compression.Brotli;
+import io.netty.handler.codec.compression.BrotliDecoder;
 import io.netty.handler.codec.compression.ZlibCodecFactory;
 import io.netty.handler.codec.compression.ZlibWrapper;
 import io.netty.util.internal.UnstableApi;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_ENCODING;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import static io.netty.handler.codec.http.HttpHeaderValues.BR;
 import static io.netty.handler.codec.http.HttpHeaderValues.DEFLATE;
 import static io.netty.handler.codec.http.HttpHeaderValues.GZIP;
 import static io.netty.handler.codec.http.HttpHeaderValues.IDENTITY;
@@ -161,7 +164,7 @@ public class DelegatingDecompressorFrameListener extends Http2FrameListenerDecor
      * @param contentEncoding the value of the {@code content-encoding} header
      * @return a new {@link ByteToMessageDecoder} if the specified encoding is supported. {@code null} otherwise
      *         (alternatively, you can throw a {@link Http2Exception} to block unknown encoding).
-     * @throws Http2Exception If the specified encoding is not not supported and warrants an exception
+     * @throws Http2Exception If the specified encoding is not supported and warrants an exception
      */
     protected EmbeddedChannel newContentDecompressor(final ChannelHandlerContext ctx, CharSequence contentEncoding)
             throws Http2Exception {
@@ -174,6 +177,10 @@ public class DelegatingDecompressorFrameListener extends Http2FrameListenerDecor
             // To be strict, 'deflate' means ZLIB, but some servers were not implemented correctly.
             return new EmbeddedChannel(ctx.channel().id(), ctx.channel().metadata().hasDisconnect(),
                     ctx.channel().config(), ZlibCodecFactory.newZlibDecoder(wrapper));
+        }
+        if (Brotli.isAvailable() && BR.contentEqualsIgnoreCase(contentEncoding)) {
+            return new EmbeddedChannel(ctx.channel().id(), ctx.channel().metadata().hasDisconnect(),
+              ctx.channel().config(), new BrotliDecoder());
         }
         // 'identity' or unsupported
         return null;

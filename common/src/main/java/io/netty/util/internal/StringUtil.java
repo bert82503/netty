@@ -103,6 +103,19 @@ public final class StringUtil {
     }
 
     /**
+     * Get the item before one char delim if the delim is found (else null).
+     * This operation is a simplified and optimized
+     * version of {@link String#split(String, int)}.
+     */
+    public static String substringBefore(String value, char delim) {
+        int pos = value.indexOf(delim);
+        if (pos >= 0) {
+            return value.substring(0, pos);
+        }
+        return null;
+    }
+
+    /**
      * Checks if two strings have the same suffix of specified length
      *
      * @param s   string
@@ -243,8 +256,7 @@ public final class StringUtil {
         assert HEX2B.length == (Character.MAX_VALUE + 1);
         // Character.digit() is not used here, as it addresses a larger
         // set of characters (both ASCII and full-width latin letters).
-        final int index = c;
-        return HEX2B[index];
+        return HEX2B[c];
     }
 
     /**

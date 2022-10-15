@@ -17,8 +17,10 @@ package io.netty.handler.codec.http;
 
 import io.netty.handler.codec.http.HttpHeadersTestUtils.HeaderValue;
 import io.netty.util.AsciiString;
+import io.netty.util.internal.EmptyArrays;
 import io.netty.util.internal.StringUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -30,19 +32,34 @@ import static io.netty.util.AsciiString.contentEquals;
 import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DefaultHttpHeadersTest {
     private static final CharSequence HEADER_NAME = "testHeader";
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void nullHeaderNameNotAllowed() {
-        new DefaultHttpHeaders().add(null, "foo");
+        assertThrows(IllegalArgumentException.class, new Executable() {
+            @Override
+            public void execute() {
+                new DefaultHttpHeaders().add(null, "foo");
+            }
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void emptyHeaderNameNotAllowed() {
-        new DefaultHttpHeaders().add(StringUtil.EMPTY_STRING, "foo");
+        assertThrows(IllegalArgumentException.class, new Executable() {
+            @Override
+            public void execute() {
+                new DefaultHttpHeaders().add(StringUtil.EMPTY_STRING, "foo");
+            }
+        });
     }
 
     @Test
@@ -64,11 +81,11 @@ public class DefaultHttpHeadersTest {
     @Test
     public void keysShouldBeCaseInsensitiveInHeadersEquals() {
         DefaultHttpHeaders headers1 = new DefaultHttpHeaders();
-        headers1.add(of("name1"), Arrays.asList("value1", "value2", "value3"));
+        headers1.add(of("name1"), asList("value1", "value2", "value3"));
         headers1.add(of("nAmE2"), of("value4"));
 
         DefaultHttpHeaders headers2 = new DefaultHttpHeaders();
-        headers2.add(of("naMe1"), Arrays.asList("value1", "value2", "value3"));
+        headers2.add(of("naMe1"), asList("value1", "value2", "value3"));
         headers2.add(of("NAME2"), of("value4"));
 
         assertEquals(headers1, headers1);
@@ -146,16 +163,26 @@ public class DefaultHttpHeadersTest {
         assertThat(AsciiString.contentEqualsIgnoreCase("FoO", "fOo"), is(true));
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testSetNullHeaderValueValidate() {
-        HttpHeaders headers = new DefaultHttpHeaders(true);
-        headers.set(of("test"), (CharSequence) null);
+        final HttpHeaders headers = new DefaultHttpHeaders(true);
+        assertThrows(NullPointerException.class, new Executable() {
+            @Override
+            public void execute() {
+                headers.set(of("test"), (CharSequence) null);
+            }
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testSetNullHeaderValueNotValidate() {
-        HttpHeaders headers = new DefaultHttpHeaders(false);
-        headers.set(of("test"), (CharSequence) null);
+        final HttpHeaders headers = new DefaultHttpHeaders(false);
+        assertThrows(NullPointerException.class, new Executable() {
+            @Override
+            public void execute() {
+                headers.set(of("test"), (CharSequence) null);
+            }
+        });
     }
 
     @Test
@@ -233,7 +260,7 @@ public class DefaultHttpHeadersTest {
                 .add(HttpHeaderNames.CONTENT_LENGTH, 10)
                 .names();
 
-        String[] namesArray = nettyHeaders.toArray(new String[0]);
+        String[] namesArray = nettyHeaders.toArray(EmptyArrays.EMPTY_STRINGS);
         assertArrayEquals(namesArray, new String[] { HttpHeaderNames.CONTENT_LENGTH.toString() });
     }
 

@@ -29,6 +29,18 @@ public class Http2FrameCodecBuilder extends
 
     private Http2FrameWriter frameWriter;
 
+    /**
+     * Allows overriding behavior of existing builder.
+     * <p>
+     * Users of this constructor are responsible for invoking {@link #server(boolean)} method or overriding
+     * {@link #isServer()} method to give the builder information if the {@link Http2Connection}(s) it creates are in
+     * server or client mode.
+     *
+     * @see AbstractHttp2ConnectionHandlerBuilder
+     */
+    protected Http2FrameCodecBuilder() {
+    }
+
     Http2FrameCodecBuilder(boolean server) {
         server(server);
         // For backwards compatibility we should disable to timeout by default at this layer.
@@ -168,6 +180,11 @@ public class Http2FrameCodecBuilder extends
     }
 
     @Override
+    public Http2FrameCodecBuilder flushPreface(boolean flushPreface) {
+        return super.flushPreface(flushPreface);
+    }
+
+    @Override
     public int decoderEnforceMaxConsecutiveEmptyDataFrames() {
         return super.decoderEnforceMaxConsecutiveEmptyDataFrames();
     }
@@ -214,7 +231,8 @@ public class Http2FrameCodecBuilder extends
     @Override
     protected Http2FrameCodec build(
             Http2ConnectionDecoder decoder, Http2ConnectionEncoder encoder, Http2Settings initialSettings) {
-        Http2FrameCodec codec = new Http2FrameCodec(encoder, decoder, initialSettings, decoupleCloseAndGoAway());
+        Http2FrameCodec codec = new Http2FrameCodec(encoder, decoder, initialSettings,
+                decoupleCloseAndGoAway(), flushPreface());
         codec.gracefulShutdownTimeoutMillis(gracefulShutdownTimeoutMillis());
         return codec;
     }

@@ -20,11 +20,15 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import io.netty.channel.ChannelPromiseNotifier;
 import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.PromiseNotifier;
+import io.netty.util.internal.EmptyArrays;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.SuppressJava6Requirement;
+import io.netty.util.internal.SystemPropertyUtil;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32;
@@ -34,6 +38,18 @@ import java.util.zip.Deflater;
  * Compresses a {@link ByteBuf} using the deflate algorithm.
  */
 public class JdkZlibEncoder extends ZlibEncoder {
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(JdkZlibEncoder.class);
+
+    /**
+     * Maximum initial size for temporary heap buffers used for the compressed output. Buffer may still grow beyond
+     * this if necessary.
+     */
+    private static final int MAX_INITIAL_OUTPUT_BUFFER_SIZE;
+    /**
+     * Max size for temporary heap buffers used to copy input data to heap.
+     */
+    private static final int MAX_INPUT_BUFFER_SIZE;
 
     private final ZlibWrapper wrapper;
     private final Deflater deflater;
@@ -46,6 +62,21 @@ public class JdkZlibEncoder extends ZlibEncoder {
     private final CRC32 crc = new CRC32();
     private static final byte[] gzipHeader = {0x1f, (byte) 0x8b, Deflater.DEFLATED, 0, 0, 0, 0, 0, 0, 0};
     private boolean writeHeader = true;
+    private static final int THREAD_POOL_DELAY_SECONDS = 10;
+
+    static {
+        MAX_INITIAL_OUTPUT_BUFFER_SIZE = SystemPropertyUtil.getInt(
+                "io.netty.jdkzlib.encoder.maxInitialOutputBufferSize",
+                65536);
+        MAX_INPUT_BUFFER_SIZE = SystemPropertyUtil.getInt(
+                "io.netty.jdkzlib.encoder.maxInputBufferSize",
+                65536);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("-Dio.netty.jdkzlib.encoder.maxInitialOutputBufferSize={}", MAX_INITIAL_OUTPUT_BUFFER_SIZE);
+            logger.debug("-Dio.netty.jdkzlib.encoder.maxInputBufferSize={}", MAX_INPUT_BUFFER_SIZE);
+        }
+    }
 
     /**
      * Creates a new zlib encoder with the default compression level ({@code 6})
@@ -94,11 +125,9 @@ public class JdkZlibEncoder extends ZlibEncoder {
      * @throws CompressionException if failed to initialize zlib
      */
     public JdkZlibEncoder(ZlibWrapper wrapper, int compressionLevel) {
-        if (compressionLevel < 0 || compressionLevel > 9) {
-            throw new IllegalArgumentException(
-                    "compressionLevel: " + compressionLevel + " (expected: 0-9)");
-        }
+        ObjectUtil.checkInRange(compressionLevel, 0, 9, "compressionLevel");
         ObjectUtil.checkNotNull(wrapper, "wrapper");
+
         if (wrapper == ZlibWrapper.ZLIB_OR_NONE) {
             throw new IllegalArgumentException(
                     "wrapper '" + ZlibWrapper.ZLIB_OR_NONE + "' is not " +
@@ -138,10 +167,7 @@ public class JdkZlibEncoder extends ZlibEncoder {
      * @throws CompressionException if failed to initialize zlib
      */
     public JdkZlibEncoder(int compressionLevel, byte[] dictionary) {
-        if (compressionLevel < 0 || compressionLevel > 9) {
-            throw new IllegalArgumentException(
-                    "compressionLevel: " + compressionLevel + " (expected: 0-9)");
-        }
+        ObjectUtil.checkInRange(compressionLevel, 0, 9, "compressionLevel");
         ObjectUtil.checkNotNull(dictionary, "dictionary");
 
         wrapper = ZlibWrapper.ZLIB;
@@ -166,7 +192,7 @@ public class JdkZlibEncoder extends ZlibEncoder {
                 @Override
                 public void run() {
                     ChannelFuture f = finishEncode(ctx(), p);
-                    f.addListener(new ChannelPromiseNotifier(promise));
+                    PromiseNotifier.cascade(f, promise);
                 }
             });
             return p;
@@ -198,19 +224,31 @@ public class JdkZlibEncoder extends ZlibEncoder {
             return;
         }
 
-        int offset;
-        byte[] inAry;
         if (uncompressed.hasArray()) {
-            // if it is backed by an array we not need to to do a copy at all
-            inAry = uncompressed.array();
-            offset = uncompressed.arrayOffset() + uncompressed.readerIndex();
-            // skip all bytes as we will consume all of them
-            uncompressed.skipBytes(len);
+            // if it is backed by an array we not need to do a copy at all
+            encodeSome(uncompressed, out);
         } else {
-            inAry = new byte[len];
-            uncompressed.readBytes(inAry);
-            offset = 0;
+            int heapBufferSize = Math.min(len, MAX_INPUT_BUFFER_SIZE);
+            ByteBuf heapBuf = ctx.alloc().heapBuffer(heapBufferSize, heapBufferSize);
+            try {
+                while (uncompressed.isReadable()) {
+                    uncompressed.readBytes(heapBuf, Math.min(heapBuf.writableBytes(), uncompressed.readableBytes()));
+                    encodeSome(heapBuf, out);
+                    heapBuf.clear();
+                }
+            } finally {
+                heapBuf.release();
+            }
         }
+        // clear input so that we don't keep an unnecessary reference to the input array
+        deflater.setInput(EmptyArrays.EMPTY_BYTES);
+    }
+
+    private void encodeSome(ByteBuf in, ByteBuf out) {
+        // both in and out are heap buffers, here
+
+        byte[] inAry = in.array();
+        int offset = in.arrayOffset() + in.readerIndex();
 
         if (writeHeader) {
             writeHeader = false;
@@ -219,6 +257,7 @@ public class JdkZlibEncoder extends ZlibEncoder {
             }
         }
 
+        int len = in.readableBytes();
         if (wrapper == ZlibWrapper.GZIP) {
             crc.update(inAry, offset, len);
         }
@@ -226,17 +265,16 @@ public class JdkZlibEncoder extends ZlibEncoder {
         deflater.setInput(inAry, offset, len);
         for (;;) {
             deflate(out);
-            if (deflater.needsInput()) {
+            if (!out.isWritable()) {
+                // The buffer is not writable anymore. Increase the capacity to make more room.
+                // Can't rely on needsInput here, it might return true even if there's still data to be written.
+                out.ensureWritable(out.writerIndex());
+            } else if (deflater.needsInput()) {
                 // Consumed everything
                 break;
-            } else {
-                if (!out.isWritable()) {
-                    // We did not consume everything but the buffer is not writable anymore. Increase the capacity to
-                    // make more room.
-                    out.ensureWritable(out.writerIndex());
-                }
             }
         }
+        in.skipBytes(len);
     }
 
     @Override
@@ -254,6 +292,11 @@ public class JdkZlibEncoder extends ZlibEncoder {
                 default:
                     // no op
             }
+        }
+        // sizeEstimate might overflow if close to 2G
+        if (sizeEstimate < 0 || sizeEstimate > MAX_INITIAL_OUTPUT_BUFFER_SIZE) {
+            // can always expand later
+            return ctx.alloc().heapBuffer(MAX_INITIAL_OUTPUT_BUFFER_SIZE);
         }
         return ctx.alloc().heapBuffer(sizeEstimate);
     }
@@ -275,7 +318,7 @@ public class JdkZlibEncoder extends ZlibEncoder {
                 public void run() {
                     ctx.close(promise);
                 }
-            }, 10, TimeUnit.SECONDS); // FIXME: Magic number
+            }, THREAD_POOL_DELAY_SECONDS, TimeUnit.SECONDS);
         }
     }
 
